@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reporte de Cobranza — Pullman</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="layout">
+
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-icon">▶</span>
+        <span class="brand-name">Pullman<br><small>Reporte Cobranza</small></span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a class="nav-link active" data-view="resumen">Resumen</a>
+        <a class="nav-link" data-view="portales">Por Portal</a>
+        <a class="nav-link" data-view="detalle">Detalle</a>
+      </nav>
+
+      <div class="sidebar-section">
+        <div class="section-label">Consultar</div>
+
+        <label class="field-label">Desde</label>
+        <input id="fromDate" class="input-field" type="date" />
+
+        <label class="field-label">Hasta <span class="limit-badge">máx 10 días</span></label>
+        <input id="toDate" class="input-field" type="date" />
+
+        <div id="dateError" class="date-error" style="display:none"></div>
+
+        <button id="fetchBtn" class="btn-primary">▶ Consultar</button>
+      </div>
+
+      <div id="statusMsg" class="status-msg"></div>
+
+      <div class="sidebar-section">
+        <div class="section-label">Cargar archivo</div>
+        <label class="btn-file" for="fileInput"><span>📂</span> Cargar JSON</label>
+        <input id="fileInput" type="file" accept=".json,application/json" />
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="top-bar">
+        <div class="top-bar-left">
+          <h1 class="page-title" id="viewTitle">Resumen General</h1>
+          <span id="dateRangeLabel" class="date-range-label"></span>
+        </div>
+        <div class="top-bar-right">
+          <span id="lastUpdated" class="last-updated"></span>
+          <button id="exportBtn" class="btn-export" style="display:none">↓ Exportar CSV</button>
+        </div>
+      </header>
+
+      <div id="emptyState" class="empty-state">
+        <div class="empty-icon">⬡</div>
+        <p>Selecciona un rango de fechas y haz clic en <strong>Consultar</strong>.</p>
+        <p class="empty-sub">Máximo 10 días por consulta.</p>
+      </div>
+
+      <div id="loadingState" class="loading-state" style="display:none">
+        <div class="spinner"></div>
+        <p id="loadingMsg">Consultando API...</p>
+      </div>
+
+      <div id="tokenExpiredBanner" class="token-banner" style="display:none">
+        <span>⚠️ El token de acceso expiró. Contacta al administrador para renovarlo.</span>
+      </div>
+
+      <div id="dashboardContent" style="display:none">
+        <section id="view-resumen" class="view">
+          <div class="kpi-grid" id="kpiGrid"></div>
+          <div class="chart-row">
+            <div class="chart-card">
+              <div class="chart-title">Monto Neto por Portal</div>
+              <div id="barChart" class="bar-chart"></div>
+            </div>
+            <div class="chart-card narrow">
+              <div class="chart-title">Distribución %</div>
+              <div id="donutChart" class="donut-wrap"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-portales" class="view" style="display:none">
+          <div id="portalCards" class="portal-cards"></div>
+        </section>
+
+        <section id="view-detalle" class="view" style="display:none">
+          <div class="table-controls">
+            <input id="tableSearch" class="input-field search-input" type="text" placeholder="Buscar pasajero, origen, destino..." />
+            <div class="table-filters">
+              <select id="filterPortal" class="input-field select-sm"><option value="">Todos los portales</option></select>
+              <select id="filterDevuelto" class="input-field select-sm">
+                <option value="">Todos</option>
+                <option value="no">Sin devolución</option>
+                <option value="si">Devueltos</option>
+              </select>
+            </div>
+            <span id="rowCount" class="row-count"></span>
+          </div>
+          <div class="table-wrap">
+            <table id="detailTable" class="data-table">
+              <thead id="tableHead"></thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
