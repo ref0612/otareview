@@ -9,6 +9,25 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <div id="loginOverlay" class="login-overlay">
+    <div class="login-box">
+      <h2>Sistema de Cobranza Pullman</h2>
+      <p>Seleccione el perfil de acceso:</p>
+      <div class="user-grid">
+        <button class="user-card bus" onclick="iniciarSesion('bus')">
+          <span class="icon">▶</span>
+          <strong>Pullman Bus</strong>
+          <small>Sucursal 2:5</small>
+        </button>
+        <button class="user-card costa" onclick="iniciarSesion('costa')">
+          <span class="icon">≋</span>
+          <strong>Pullman Costa</strong>
+          <small>Sucursal 2:9</small>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div class="layout">
 
     <aside class="sidebar">
@@ -114,6 +133,17 @@
         </section>
       </div>
     </main>
+
+    <div id="loginState" class="login-screen">
+      <div class="login-card">
+        <div class="brand-large">▶ PULLMAN</div>
+        <p>Selecciona la unidad de negocio para el reporte</p>
+        <div class="login-options">
+          <button class="btn-login bus" onclick="initApp('bus')">Pullman Bus</button>
+          <button class="btn-login costa" onclick="initApp('costa')">Pullman Costa</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="script.js"></script>

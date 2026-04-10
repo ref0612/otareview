@@ -18,6 +18,21 @@ let parsedData=null, currentView='resumen', allRows=[], sortCol=null, sortDir=1;
 const _pidx={};
 const $=id=>document.getElementById(id);
 
+let currentContext = { company: null, themeColor: '#f5a623' };
+
+function initApp(company) {
+  currentContext.company = company;
+  currentContext.themeColor = company === 'bus' ? '#f5a623' : '#00d4ff';
+
+  // Aplicar tema visual dinámico
+  document.documentElement.style.setProperty('--accent', currentContext.themeColor);
+
+  // Mostrar dashboard y ocultar login
+  $('loginState').style.display = 'none';
+  $('dashboardContent').style.display = 'flex';
+  $('viewTitle').textContent = `Reporte ${company === 'bus' ? 'Pullman Bus' : 'Pullman Costa'}`;
+}
+
 // ── INIT ──────────────────────────────────────
 document.addEventListener('DOMContentLoaded',()=>{
   const today=new Date(), fmt=d=>d.toISOString().split('T')[0];
@@ -55,40 +70,27 @@ function hideErr(){$('dateError').style.display='none';}
 
 // ── FETCH via /api/report ─────────────────────
 async function doFetch(){
-  if(!validateDates()) return;
-  const from=$('fromDate').value, to=$('toDate').value;
-  if(!from||!to){setStatus('Selecciona fechas.','error');return;}
-
-  const qs=new URLSearchParams({
-    from_date: formatDateForApi(from),
-    to_date:   formatDateForApi(to),
+  const params = new URLSearchParams({
+    from_date: formatDateForApi($('fromDate').value),
+    to_date: formatDateForApi($('toDate').value),
+    company: window.currentCompany // 'bus' o 'costa' seleccionado en el login
   });
 
-  showLoading(true,'Consultando API...');
-  $('tokenExpiredBanner').style.display='none';
+  showLoading(true, 'Consultando servidor seguro...');
 
   try {
-    const res = await fetch(`/api/report?${qs}`);
+    // LLAMADA ÚNICA A TU PROPIA API
+    const res = await fetch(`/api/report?${params}`); 
     const data = await res.json();
 
-    if(res.status===401){
-      showLoading(false);
-      $('tokenExpiredBanner').style.display='flex';
-      setStatus('Token expirado.','error');
-      return;
-    }
-    if(!res.ok){
-      showLoading(false);
-      setStatus((data.error||`Error ${res.status}`),'error');
-      return;
-    }
-    $('dateRangeLabel').textContent=`${formatDateLabel(from)} → ${formatDateLabel(to)}`;
-    processAndRender(data);
-    setStatus('✓ Datos cargados','success');
+    if (!res.ok) throw new Error(data.error || 'Error en la consulta');
 
-  } catch(err){
+    processAndRender(data);
+    setStatus('✓ Datos cargados con éxito', 'success');
+  } catch (err) {
+    setStatus(err.message, 'error');
+  } finally {
     showLoading(false);
-    setStatus('Error de conexión: '+err.message,'error');
   }
 }
 
@@ -317,3 +319,22 @@ function formatDateLabel(iso){const[y,m,d]=iso.split('-');return`${d}/${m}/${y}`
 function setStatus(m,t){$('statusMsg').textContent=m;$('statusMsg').className='status-msg'+(t?' '+t:'');}
 function showLoading(s,m){$('loadingState').style.display=s?'flex':'none';if(m)$('loadingMsg').textContent=m;if(s){$('emptyState').style.display='none';$('dashboardContent').style.display='none';}}
 function pidx(n){if(_pidx[n]===undefined)_pidx[n]=Object.keys(_pidx).length;return _pidx[n];}
+
+function iniciarSesion(empresa) {
+  window.currentCompany = empresa;
+
+  // Ajustes visuales según el "usuario"
+  const settings = {
+    bus: { color: '#f5a623', logo: '▶', titulo: 'Pullman Bus' },
+    costa: { color: '#00d4ff', logo: '≋', titulo: 'Pullman Costa' }
+  };
+
+  const ui = settings[empresa];
+  document.documentElement.style.setProperty('--accent', ui.color);
+  document.querySelector('.brand-icon').textContent = ui.logo;
+  document.querySelector('.brand-name').innerHTML = `${ui.titulo}<br><small>Reporte Cobranza</small>`;
+
+  // Ocultar login y mostrar app
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.querySelector('.layout').style.display = 'flex';
+}

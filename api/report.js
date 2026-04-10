@@ -6,82 +6,57 @@
  */
 
 export default async function handler(req, res) {
-  // Solo GET
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  const { from_date, to_date, company } = req.query;
 
-  const token  = process.env.PULLMAN_BEARER_TOKEN;
-  const apiKey = process.env.PULLMAN_API_KEY;
-
-  if (!token) {
-    return res.status(500).json({ error: 'Token no configurado en variables de entorno de Vercel.' });
-  }
-
-  // Parámetros que vienen del frontend
-  const {
-    from_date, to_date,
-    user_id     = '5',
-    branch_user = '2:5',
-  } = req.query;
-
-  if (!from_date || !to_date) {
-    return res.status(400).json({ error: 'from_date y to_date son requeridos.' });
-  }
-
-  // Validar rango máximo de 10 días
-  const parseDate = s => {
-    const [d, m, y] = s.split('/');
-    return new Date(`${y}-${m}-${d}`);
+  // Las URLs de las APIs de KonnectPro están ocultas aquí en el servidor
+  const endpoints = {
+    bus: { url: 'https://api-pullman.konnectpro.cl', branch: '2:5' },
+    costa: { url: 'https://api-costas.konnectpro.cl', branch: '2:9' }
   };
-  const diffDays = (parseDate(to_date) - parseDate(from_date)) / (1000 * 60 * 60 * 24);
-  if (diffDays > 10) {
-    return res.status(400).json({ error: 'El rango máximo permitido es 10 días.' });
-  }
 
-  const REPORT_ID = 888;
-  const qs = new URLSearchParams({
-    more_link: 'true', is_detailed_view: 'true',
-    user_id, date_type: '2', date_range: '4',
-    from_date, to_date,
-    user: '1', branch_user,
-    report_type: String(REPORT_ID),
-    user_name: 'Ticket Simply',
-    currency_symbol: '$',
-    currency_converted_value: '0.0',
-    gds_agent: '', locale: 'es',
-  });
+  const selected = endpoints[company];
+  if (!selected) return res.status(400).json({ error: 'Empresa no válida' });
 
-  const apiUrl = `https://api-pullman.konnectpro.cl/api/v2/reports/branch_collection_report/${REPORT_ID}?${qs}`;
+  // Credenciales protegidas en variables de entorno (Environment Variables)
+  const credentials = {
+    login: process.env.KONNECT_LOGIN,
+    password: process.env.KONNECT_PASSWORD,
+    apiKey: process.env.PULLMAN_API_KEY
+  };
 
-  try {
-    const apiRes = await fetch(apiUrl, {
-      headers: {
-        'accept':           'application/json',
-        'accept-language':  'es-ES,es;q=0.9',
-        'authorization':    `Bearer ${token}`,
-        'cache-control':    'no-store',
-        'category_type':    '1',
-        ...(apiKey ? { 'x-api-key': apiKey } : {}),
-      },
+  // Función interna para consultar la API real
+  async function callKonnect(token) {
+    const REPORT_ID = 888;
+    const qs = new URLSearchParams({
+      more_link: 'true', is_detailed_view: 'true', user_id: '5',
+      date_type: '2', date_range: '4', from_date, to_date,
+      user: '1', branch_user: selected.branch, report_type: String(REPORT_ID), locale: 'es'
     });
 
-    if (apiRes.status === 401) {
-      return res.status(401).json({ error: 'Token expirado. El administrador debe actualizar el token en Vercel.' });
-    }
-    if (!apiRes.ok) {
-      const text = await apiRes.text();
-      return res.status(apiRes.status).json({ error: `API error ${apiRes.status}`, detail: text.slice(0, 200) });
-    }
+    return fetch(`${selected.url}/api/v2/reports/branch_collection_report/${REPORT_ID}?${qs}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'X-Api-Key': credentials.apiKey,
+        'category_type': '1'
+      }
+    });
+  }
 
+  try {
+    // 1. Intentar con un token guardado o forzar un login inicial
+    // El sistema de Auto-Refresh ocurre aquí si la respuesta es 401
+    let loginRes = await fetch(`${selected.url}/api/v2/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Api-Key': credentials.apiKey },
+      body: JSON.stringify({ login: credentials.login, password: credentials.password })
+    });
+
+    const { token } = await loginRes.json();
+    const apiRes = await callKonnect(token);
     const data = await apiRes.json();
 
-    // Cache 5 minutos en Vercel CDN
-    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate');
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(200).json(data);
-
+    res.status(apiRes.status).json(data);
   } catch (err) {
-    return res.status(502).json({ error: 'No se pudo conectar con la API de Pullman.', detail: err.message });
+    res.status(500).json({ error: 'Error interno en el servidor seguro' });
   }
 }
